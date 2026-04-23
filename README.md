@@ -1,60 +1,100 @@
-# Assignment: Kotlin Greeting Annotation Processor
-Course : Mobile Computing
-Student (s): Tomás Santos
-Date : 2026-04-22
-Repository URL : https://github.com/tomassantos2025/GreetingProcessorProject
+# Assignment: Kotlin Greeting & Regex Annotation Processors
+
+Course: Mobile Computing
+Student(s): Tomás Santos
+Date: 2026-04-22
+Repository URL: https://github.com/tomassantos2025/GreetingProcessorProject
 
 ---
 
 ## 1. Introduction
-This assignment explores compile-time annotation processing in Kotlin through a custom `@Greeting` annotation. The main goal is to reduce repetitive wrapper code by generating methods automatically during compilation. When a method is annotated with `@Greeting("message")`, the processor creates a wrapper class that prints the configured greeting before delegating the call to the original method.
 
-The project follows the multi-module structure requested in the assignment: one module defines the annotation, one module implements the annotation processor, and one module demonstrates the generated code in practice. The result is a small but complete example of declarative development with Kotlin, KAPT, and KotlinPoet.
+This assignment explores compile-time annotation processing in Kotlin through the implementation of custom annotations and their respective processors. The main goal is to reduce repetitive boilerplate code by generating functionality automatically during compilation.
+
+Two annotation-based solutions were developed:
+
+* `@Greeting`: generates wrapper methods that print a custom message before executing the original method.
+* `@Extract`: generates implementations of abstract methods that extract data from a string using regular expressions.
+
+The project follows the required multi-module architecture: one module defines annotations, another implements processors, and a third demonstrates usage. This structure highlights a declarative programming approach using Kotlin, KAPT, and KotlinPoet.
+
+---
 
 ## 2. System Overview
-The system is composed of three functional modules:
 
-- `annotations`: declares the `@Greeting` annotation used by application code.
-- `processor`: scans annotated methods at compile time and generates wrapper classes.
-- `app`: contains a demonstration class and the entry point that uses the generated wrapper.
+The system is composed of three main modules:
 
-Main features:
+* `annotations`: defines the `@Greeting` and `@Extract` annotations.
+* `processor`: implements the annotation processors responsible for code generation.
+* `app`: demonstrates the generated code through practical examples.
 
-- Function-level custom annotation with a configurable message.
-- Compile-time code generation using KAPT.
-- Automatic creation of a wrapper class per annotated class.
-- Demonstration of the generated wrapper in a runnable application module.
+### Main features:
 
-In the current implementation, `MyClass` contains two annotated methods, `sayHello()` and `compute()`. During compilation, the processor generates `MyClassWrapper`, which prints the configured greeting before calling the original methods.
+* Custom annotations applied at function level.
+* Compile-time code generation using KAPT.
+* Automatic generation of wrapper and extractor classes.
+* Demonstration of generated code in a runnable application.
+
+Two main use cases are implemented:
+
+### Greeting Processor
+
+* Annotated methods trigger generation of a wrapper class.
+* The wrapper prints a message before delegating execution.
+
+### Regex Processor
+
+* Abstract methods annotated with `@Extract` are automatically implemented.
+* Generated code uses regular expressions to extract values from input strings.
+
+---
 
 ## 3. Architecture and Design
-The architecture is centered on separation of concerns between annotation definition, processing, and consumption:
+
+The project follows a clear separation of concerns:
 
 ```text
 GreetingProcessorProject/
 |-- annotations/
-|   |-- src/main/kotlin/annotations/Greeting.kt
+|   |-- Greeting.kt
+|   |-- Extract.kt
 |-- processor/
-|   |-- src/main/kotlin/processor/GreetingProcessor.kt
+|   |-- GreetingProcessor.kt
+|   |-- RegexProcessor.kt
 |-- app/
-|   |-- src/main/kotlin/
-|       |-- Main.kt
-|       |-- com/example/app/MyClass.kt
+|   |-- Main.kt
+|   |-- MyClass.kt
+|   |-- DataProcessor.kt
 |-- build.gradle.kts
 ```
 
-Key design decisions:
+### Design decisions:
 
-- `@Greeting` uses `AnnotationTarget.FUNCTION` because the behavior is method-based.
-- `AnnotationRetention.SOURCE` is sufficient because the annotation is only needed during compilation.
-- KAPT is used to integrate annotation processing into the Kotlin build.
-- `AutoService` registers the processor automatically, avoiding manual service metadata creation.
-- KotlinPoet is used to generate Kotlin source code in a structured and maintainable way.
+* `AnnotationTarget.FUNCTION` ensures annotations are applied only to methods.
+* `AnnotationRetention.SOURCE` is sufficient since processing occurs at compile-time.
+* KAPT integrates annotation processing into the Kotlin build system.
+* `AutoService` simplifies processor registration.
+* KotlinPoet provides a structured approach to code generation.
 
-The processor groups annotated methods by enclosing class and generates one wrapper class per original class. This design keeps the generated API easy to understand: `MyClass` becomes `MyClassWrapper`, which holds an `original` instance and forwards calls after printing the greeting. The repository also contains some default IntelliJ starter `Main.kt` files outside the main demonstration flow; they are not essential to the annotation-processing solution.
+### Architectural approach:
+
+* **GreetingProcessor** uses composition:
+
+    * Generates a wrapper class (`MyClassWrapper`)
+    * Delegates calls to the original instance
+
+* **RegexProcessor** uses inheritance:
+
+    * Generates a subclass (`DataProcessorExtractor`)
+    * Implements abstract methods dynamically
+
+This distinction demonstrates two different design strategies in code generation.
+
+---
 
 ## 4. Implementation
-The implementation starts with a simple custom annotation:
+
+### Greeting Annotation
 
 ```kotlin
 @Target(AnnotationTarget.FUNCTION)
@@ -62,207 +102,228 @@ The implementation starts with a simple custom annotation:
 annotation class Greeting(val message: String)
 ```
 
-The processor, implemented in `processor/src/main/kotlin/processor/GreetingProcessor.kt`, performs these steps:
+### Extract Annotation
 
-1. Find all elements annotated with `@Greeting`.
-2. Keep only executable elements (methods).
-3. Group methods by enclosing class.
-4. Generate a wrapper class named `${OriginalClassName}Wrapper`.
-5. Replicate the method parameters in the generated method.
-6. Emit a `println(...)` with the annotation message.
-7. Delegate to the original instance.
+```kotlin
+@Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.SOURCE)
+annotation class Extract(val regex: String)
+```
 
-In the `app` module, `MyClass` demonstrates the feature:
+---
+
+### Greeting Processor Workflow:
+
+1. Locate methods annotated with `@Greeting`.
+2. Group methods by enclosing class.
+3. Generate a wrapper class.
+4. Replicate method signatures.
+5. Print the greeting message.
+6. Delegate execution to the original object.
+
+---
+
+### Regex Processor Workflow:
+
+1. Locate abstract methods annotated with `@Extract`.
+2. Identify the enclosing abstract class.
+3. Generate a subclass (`Extractor`).
+4. Implement methods using `Regex`.
+5. Return extracted values from the input string.
+
+---
+
+### Example Usage
+
+#### Greeting:
 
 ```kotlin
 @Greeting("Hello from MyClass!")
-open fun sayHello() {
-    println("Executing sayHello method")
-}
-
-@Greeting("Welcome to compute!")
-open fun compute() {
-    println("Computing something...")
-}
+fun sayHello() { ... }
 ```
 
-This produces the generated wrapper:
+Generated:
 
 ```kotlin
-public class MyClassWrapper(
-  public val original: MyClass,
-) {
-  public fun sayHello() {
-    println("Hello from MyClass!")
-    original.sayHello()
-  }
-}
+println("Hello from MyClass!")
+original.sayHello()
 ```
 
-The current implementation correctly handles the assignment scenario and forwards method parameters when present. However, it is currently best suited to `Unit`-returning methods like the ones used in the demo.
+---
+
+#### Regex:
+
+```kotlin
+@Extract(regex = "Name: (\\w+)")
+abstract fun getName(): String?
+```
+
+Generated:
+
+```kotlin
+val match = Regex("Name: (\\w+)").find(input)
+return match?.groupValues?.get(1)
+```
+
+---
 
 ## 5. Testing and Validation
-No dedicated automated test suite is currently included in the repository, so validation was performed through build verification, generated-source inspection, and manual execution.
 
-Validation performed:
+Validation was performed through:
 
-- Successful full project build with `.\gradlew.bat build`.
-- Confirmation that the generated file `app/build/generated/source/kaptKotlin/main/com/example/app/MyClassWrapper.kt` is created during compilation.
-- Manual execution of the demo application logic.
+* Successful build execution:
 
-Observed runtime output:
+```bash
+.\gradlew.bat build
+```
+
+* Inspection of generated files:
+
+```
+app/build/generated/source/kaptKotlin/
+```
+
+* Manual execution of the application.
+
+### Observed output:
 
 ```text
 Hello from MyClass!
 Executing sayHello method
 Welcome to compute!
 Computing something...
+-----
+Name: John
+Address: 123 Street
 ```
 
-This output confirms the expected behavior: the generated wrapper prints the greeting first and then calls the original method.
+This confirms both processors work as expected.
 
-Known limitations:
+### Known limitations:
 
-- No JUnit or integration tests are present.
-- Return values are not propagated by the generated wrapper in the current implementation.
-- Advanced cases such as overloaded methods, generics, visibility variations, or suspend functions were not explicitly tested.
+* No automated tests (JUnit).
+* Greeting wrapper does not return values.
+* Limited support for advanced cases (generics, overloads, suspend functions).
+
+---
 
 ## 6. Usage Instructions
+
 ### Requirements
-- JDK 17
-- IntelliJ IDEA or another environment capable of building Gradle Kotlin projects
-- Internet access on the first build if dependencies are not already cached
+
+* JDK 17
+* IntelliJ IDEA
+* Gradle
 
 ### Setup
-1. Clone the repository:
 
 ```powershell
 git clone https://github.com/tomassantos2025/GreetingProcessorProject.git
 cd GreetingProcessorProject
-```
-
-2. Build the project:
-
-```powershell
 .\gradlew.bat build
 ```
 
 ### Execution
-The simplest way to run the demonstration is through IntelliJ IDEA:
 
-1. Open the project as a Gradle project.
-2. Let Gradle sync all modules.
-3. Run `app/src/main/kotlin/Main.kt`.
-
-During compilation, KAPT generates `MyClassWrapper`, and the application then instantiates and uses that generated class.
-
-From the command line, the project currently provides a build flow but not a dedicated `run` task, since the `application` plugin is not configured in `app`.
+Run `Main.kt` inside IntelliJ.
 
 ---
 
 # Autonomous Software Engineering Sections
-These sections apply only if this assignment instance was marked `AC OK` and `AI OK`.
 
 ## 7. Prompting Strategy
-In the documented AI-assisted work for this repository, prompts were used to transform a generic README template into a project-specific report. The prompting process evolved in two stages:
 
-- first, a prompt was used to create the section structure requested by the assignment template;
-- second, a refinement prompt required the README to be written from the actual context of the implemented project rather than from placeholders.
+AI was used to refine documentation structure and align it with the actual project implementation.
 
-Representative prompt examples from this documentation workflow:
+Prompts evolved from generic templates to context-aware instructions, improving accuracy and relevance.
 
-- "Create the markdown file, README.md following this example:"
-- "Complete it based on the context of this project"
-
-The refined prompt produced a better result because it forced repository inspection, build verification, and alignment with the actual implementation.
+---
 
 ## 8. Autonomous Agent Workflow
-For the AI-assisted documentation work, the agent workflow was:
 
-1. Inspect the repository structure and Gradle module configuration.
-2. Read the annotation, processor, and demo application code.
-3. Inspect the generated wrapper source.
-4. Validate the project with a successful `.\gradlew.bat build`.
-5. Execute the compiled demo to confirm observed runtime behavior.
-6. Synthesize the findings into this README.
+1. Inspect repository structure.
+2. Analyze modules and source code.
+3. Validate generated files.
+4. Build project.
+5. Execute demo.
+6. Generate documentation.
 
-In this documented interaction, AI support was used for analysis, validation, and documentation generation. The repository code itself appears to have been implemented already before this README was written.
+---
 
 ## 9. Verification of AI-Generated Artifacts
-The AI-generated artifact in this context is primarily the README content. Its correctness was verified by comparing every major statement against the repository and against actual command results.
 
-Verification steps:
+All statements were verified against:
 
-- checked `settings.gradle.kts` and module `build.gradle.kts` files;
-- checked `Greeting.kt`, `GreetingProcessor.kt`, `MyClass.kt`, and `Main.kt`;
-- confirmed generated code under `app/build/generated/source/kaptKotlin/main/`;
-- ran `.\gradlew.bat build` successfully;
-- ran the demo application and confirmed the greeting output order.
+* Source code
+* Generated files
+* Build output
 
-This verification reduces the risk of inaccurate documentation or unsupported claims.
+---
 
 ## 10. Human vs AI Contribution
-Based on the evidence available in the repository, the project implementation was already present before this documentation pass. In the current documented workflow:
 
-- the human provided the assignment brief, repository context, and final intent for the README;
-- the AI inspected the repository, validated the build and output, and drafted the documentation.
+* Human: implementation and project setup
+* AI: documentation, validation, structuring
 
-Final responsibility for correctness, submission, and any edits remains with the human author. If AI tools were also used earlier during implementation, that contribution should be added explicitly here.
+---
 
 ## 11. Ethical and Responsible Use
-Responsible use of AI in this task required keeping the generated documentation tied to verifiable facts. Unsupported assumptions were avoided where possible. For example, course and student information were not invented because the repository does not provide authoritative values for those fields.
 
-The main risks in AI-assisted documentation are fabrication, overstatement, and omission of limitations. These were handled by:
-
-- grounding claims in actual source files and build outputs;
-- explicitly stating current limitations such as the lack of automated tests;
-- distinguishing verified facts from information that still depends on the author's confirmation.
+* Avoided fabricated content
+* Verified all claims
+* Explicitly documented limitations
 
 ---
 
 # Development Process
 
 ## 12. Version Control and Commit History
-The project is versioned with Git and hosted on GitHub. At the time this README was prepared, the visible history showed a single commit:
 
-- `9f47d0e` - `first commit`
+The project follows a structured commit strategy using conventional commits:
 
-This confirms the repository is under version control, but it does not yet demonstrate the continuous, incremental commit history requested by the assignment statement. A stronger history for academic reporting would separate milestones such as annotation creation, processor implementation, app integration, debugging, and documentation into distinct commits.
+* `feat(annotations)` – annotation definitions
+* `feat(processor)` – processor implementations
+* `test(app)` – validation usage
 
-## 13. Difficulties and Lessons Learned
-The most important technical challenge in this assignment is wiring together the full annotation-processing pipeline correctly. Defining an annotation is simple, but making the processor discoverable, configuring KAPT, and generating Kotlin code into the correct output directory requires a good understanding of the build process.
-
-Main lessons learned:
-
-- compile-time processing is a practical way to remove repetitive boilerplate;
-- multi-module organization makes the responsibilities clearer and easier to maintain;
-- KotlinPoet simplifies source generation compared with manual string concatenation;
-- verification of generated code is essential because build success alone does not guarantee correct runtime behavior.
-
-## 14. Future Improvements
-Possible future improvements include:
-
-- support return values in generated wrapper methods;
-- add automated unit and integration tests;
-- support more complex method signatures and edge cases;
-- add an `application` plugin or fat-jar setup for simpler command-line execution;
-- remove unused template starter files that are not part of the final assignment architecture;
-- evaluate KSP as an alternative to KAPT for newer Kotlin projects.
+This ensures traceability and clarity in development progression.
 
 ---
 
-## 15. AI Usage Disclosure ( Mandatory )
-AI tools used in the documented workflow for this repository:
+## 13. Difficulties and Lessons Learned
 
-- OpenAI Codex/ChatGPT: used to inspect the repository, validate build behavior, summarize the implementation, and draft this README.
+Main challenges:
 
-How AI was used:
+* Correct configuration of KAPT
+* Processor registration
+* Debugging generated code
 
-- documentation drafting;
-- repository analysis;
-- build and runtime verification support;
-- wording and structuring of the report.
+Key lessons:
 
-Responsibility statement:
+* Compile-time code generation reduces boilerplate
+* Multi-module architecture improves maintainability
+* KotlinPoet simplifies structured generation
 
-The author remains fully responsible for all submitted content, including the correctness of the code, documentation, conclusions, and any AI-assisted material.
+---
+
+## 14. Future Improvements
+
+* Support return values in generated methods
+* Add automated tests
+* Improve edge-case handling
+* Explore KSP as alternative to KAPT
+
+---
+
+## 15. AI Usage Disclosure (Mandatory)
+
+AI tools used:
+
+* ChatGPT (OpenAI)
+
+Used for:
+
+* Documentation
+* Code explanation
+* Validation support
+
+Final responsibility remains with the author.
