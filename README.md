@@ -33,14 +33,14 @@ The architecture is centered on separation of concerns between annotation defini
 ```text
 GreetingProcessorProject/
 |-- annotations/
-|   `-- src/main/kotlin/annotations/Greeting.kt
+|   |-- src/main/kotlin/annotations/Greeting.kt
 |-- processor/
-|   `-- src/main/kotlin/processor/GreetingProcessor.kt
+|   |-- src/main/kotlin/processor/GreetingProcessor.kt
 |-- app/
-|   `-- src/main/kotlin/
+|   |-- src/main/kotlin/
 |       |-- Main.kt
-|       `-- com/example/app/MyClass.kt
-`-- build.gradle.kts
+|       |-- com/example/app/MyClass.kt
+|-- build.gradle.kts
 ```
 
 Key design decisions:
@@ -171,8 +171,8 @@ In the documented AI-assisted work for this repository, prompts were used to tra
 
 Representative prompt examples from this documentation workflow:
 
-- "create the markdown file, README.md following this:"
-- "yes but its for you to create with whats asked based on the context of this project"
+- "Create the markdown file, README.md following this example:"
+- "Complete it based on the context of this project"
 
 The refined prompt produced a better result because it forced repository inspection, build verification, and alignment with the actual implementation.
 
